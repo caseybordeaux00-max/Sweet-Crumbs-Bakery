@@ -19,7 +19,16 @@ jobs:
         run: |
           set -e
           rm -rf project
-          unzip -q SweetCrumbs-GitHub-ready.zip -d project
+
+          ZIP=$(find . -maxdepth 1 -type f -name 'SweetCrumbs-GitHub-ready*.zip' | head -n 1)
+
+          if [ -z "$ZIP" ]; then
+            echo "Could not find the Sweet Crumbs project ZIP."
+            exit 1
+          fi
+
+          echo "Using $ZIP"
+          unzip -q "$ZIP" -d project
 
           SETTINGS=$(find project -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) | head -n 1)
 
