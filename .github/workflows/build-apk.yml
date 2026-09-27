@@ -15,25 +15,55 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Extract Android project
+        shell: bash
         run: |
+          set -e
+          rm -rf project
           unzip -q SweetCrumbs-GitHub-ready.zip -d project
-          echo "PROJECT_DIR=$(dirname "$(find project -name gradlew -type f | head -n 1)")" >> "$GITHUB_ENV"
 
-      - name: Make Gradle executable
-        run: chmod +x "$PROJECT_DIR/gradlew"
+          SETTINGS=$(find project -type f \( -name settings.gradle -o -name settings.gradle.kts \) | head -n 1)
 
-      - name: Build APK
-        run: |
-          cd "$PROJECT_DIR"
-          ./gradlew assembleDebug --stacktrace
-
-      - name: Find APK
-        run: |
-          APK=$(find "$PROJECT_DIR" -name "*-debug.apk" -type f | head -n 1)
-          if [ -z "$APK" ]; then
-            echo "APK was not produced."
+          if [ -z "$SETTINGS" ]; then
+            echo "Could not find settings.gradle or settings.gradle.kts in the ZIP."
+            echo "ZIP contents:"
+            find project -maxdepth 5 -type f | sort | head -n 200
             exit 1
           fi
+
+          PROJECT_DIR=$(dirname "$SETTINGS")
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Android project found at: $PROJECT_DIR"
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build APK
+        shell: bash
+        run: |
+          set -e
+          cd "$PROJECT_DIR"
+          gradle assembleDebug --stacktrace
+
+      - name: Find APK
+        shell: bash
+        run: |
+          set -e
+          APK=$(find "$PROJECT_DIR" -type f -name "*-debug.apk" | head -n 1)
+
+          if [ -z "$APK" ]; then
+            echo "APK was not produced."
+            find "$PROJECT_DIR" -maxdepth 8 -type f | sort | tail -n 200
+            exit 1
+          fi
+
           mkdir -p apk-output
           cp "$APK" apk-output/SweetCrumbs-debug.apk
 
@@ -42,3 +72,4 @@ jobs:
         with:
           name: SweetCrumbs-debug-apk
           path: apk-output/SweetCrumbs-debug.apk
+          if-no-files-found: error
