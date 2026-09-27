@@ -21,7 +21,7 @@ jobs:
           rm -rf project
           unzip -q SweetCrumbs-GitHub-ready.zip -d project
 
-          SETTINGS=$(find project -type f \( -name settings.gradle -o -name settings.gradle.kts \) | head -n 1)
+          SETTINGS=$(find project -type f -name settings.gradle -o -name settings.gradle.kts | head -n 1)
 
           if [ -z "$SETTINGS" ]; then
             echo "Could not find the Android project."
@@ -38,48 +38,4 @@ jobs:
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
-
-      - name: Build APK
-        shell: bash
-        run: |
-          set -e
-          cd "$PROJECT_DIR"
-
-          cat > /tmp/fix-jvm.gradle <<'EOF'
-          allprojects {
-              tasks.withType(org.gradle.api.tasks.compile.JavaCompile).configureEach {
-                  sourceCompatibility = "17"
-                  targetCompatibility = "17"
-              }
-
-              tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                  kotlinOptions.jvmTarget = "17"
-              }
-          }
-          EOF
-
-          gradle -I /tmp/fix-jvm.gradle assembleDebug --stacktrace
-
-      - name: Find APK
-        shell: bash
-        run: |
-          set -e
-          APK=$(find "$PROJECT_DIR" -type f -name "*-debug.apk" | head -n 1)
-
-          if [ -z "$APK" ]; then
-            echo "APK was not produced."
-            exit 1
-          fi
-
-          mkdir -p apk-output
-          cp "$APK" apk-output/SweetCrumbs-debug.apk
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: SweetCrumbs-debug-apk
-          path: apk-output/SweetCrumbs-debug.apk
-          if-no-files-found: error
+        uses: gradle/actions/setup-grad
